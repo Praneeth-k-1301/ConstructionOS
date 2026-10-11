@@ -5,61 +5,67 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health check endpoint
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'ConstructionOS API is running' });
 });
 
-// Mock Projects Data
+// Projects Data
 let projects = [
   { id: 1, name: 'Downtown Commercial Tower', status: 'In Progress', progress: 65 },
   { id: 2, name: 'Suburban Residential Complex', status: 'Planning', progress: 15 }
 ];
 
-// Mock Tasks Data (Phase 1 Core)
+// Phase 1: Tasks Data
 let tasks = [
   { id: 101, projectId: 1, title: 'Foundation Concrete Pouring', assignedTo: 'Site Engineer', status: 'Completed', priority: 'High' },
-  { id: 102, projectId: 1, title: 'Structural Steel Framing', assignedTo: 'Contractor', status: 'In Progress', priority: 'High' },
-  { id: 103, projectId: 2, title: 'Soil Testing & Excavation', assignedTo: 'Site Engineer', status: 'Pending', priority: 'Medium' }
+  { id: 102, projectId: 1, title: 'Structural Steel Framing', assignedTo: 'Contractor', status: 'In Progress', priority: 'High' }
 ];
 
-// Get Projects
-app.get('/api/projects', (req, res) => {
-  res.json(projects);
-});
+// Phase 2: Inventory Data
+let inventory = [
+  { id: 1, itemName: 'Portland Cement (Bags)', quantity: 450, minThreshold: 100, unit: 'Bags' },
+  { id: 2, itemName: 'TMT Steel Rods (12mm)', quantity: 12, minThreshold: 20, unit: 'Tons' },
+  { id: 3, itemName: 'River Sand', quantity: 80, minThreshold: 50, unit: 'Tons' }
+];
 
-// Get Tasks
-app.get('/api/tasks', (req, res) => {
-  res.json(tasks);
-});
+app.get('/api/projects', (req, res) => res.json(projects));
 
-// Add New Task (Phase 1 Feature)
+// Tasks Endpoints
+app.get('/api/tasks', (req, res) => res.json(tasks));
 app.post('/api/tasks', (req, res) => {
-  const { projectId, title, assignedTo, priority } = req.body;
-  const newTask = {
-    id: Date.now(),
-    projectId: Number(projectId) || 1,
-    title,
-    assignedTo,
-    status: 'Pending',
-    priority: priority || 'Medium'
-  };
+  const newTask = { id: Date.now(), projectId: 1, ...req.body, status: 'Pending' };
   tasks.push(newTask);
   res.status(201).json(newTask);
 });
-
-// Update Task Status
 app.patch('/api/tasks/:id', (req, res) => {
-  const taskId = Number(req.params.id);
-  const { status } = req.body;
-  
-  const task = tasks.find(t => t.id === taskId);
-  if (task) {
-    task.status = status;
-    res.json(task);
-  } else {
-    res.status(404).json({ message: 'Task not found' });
-  }
+  const task = tasks.find(t => t.id === Number(req.params.id));
+  if (task) { task.status = req.body.status; res.json(task); }
+  else res.status(404).json({ message: 'Task not found' });
+});
+
+// Phase 2: Inventory Endpoints
+app.get('/api/inventory', (req, res) => res.json(inventory));
+
+app.post('/api/inventory', (req, res) => {
+  const { itemName, quantity, minThreshold, unit } = req.body;
+  const newItem = {
+    id: Date.now(),
+    itemName,
+    quantity: Number(quantity),
+    minThreshold: Number(minThreshold) || 50,
+    unit: unit || 'Units'
+  };
+  inventory.push(newItem);
+  res.status(201).json(newItem);
+});
+
+app.patch('/api/inventory/:id', (req, res) => {
+  const item = inventory.find(i => i.id === Number(req.params.id));
+  if (item) {
+    if (req.body.quantity !== undefined) item.quantity = Number(req.body.quantity);
+    res.json(item);
+  } else res.status(404).json({ message: 'Item not found' });
 });
 
 const PORT = process.env.PORT || 5000;
