@@ -3,27 +3,30 @@ import axios from 'axios';
 import './App.css';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks', 'inventory', 'labour'
+  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks', 'inventory', 'labour', 'expenses'
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [workers, setWorkers] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [role, setRole] = useState('Project Manager');
   
-  // Phase 1 Task Form
+  // Forms state
   const [taskTitle, setTaskTitle] = useState('');
   const [assignedTo, setAssignedTo] = useState('Site Engineer');
   const [priority, setPriority] = useState('Medium');
 
-  // Phase 2 Inventory Form
   const [itemName, setItemName] = useState('');
   const [itemQty, setItemQty] = useState('');
   const [itemUnit, setItemUnit] = useState('Bags');
 
-  // Phase 3 Labour Form
   const [workerName, setWorkerName] = useState('');
   const [workerRole, setWorkerRole] = useState('Mason');
   const [dailyWage, setDailyWage] = useState('');
+
+  const [expCategory, setExpCategory] = useState('Materials');
+  const [expDesc, setExpDesc] = useState('');
+  const [expAmount, setExpAmount] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -31,27 +34,27 @@ function App() {
 
   const fetchData = async () => {
     try {
-      const [pRes, tRes, iRes, lRes] = await Promise.all([
+      const [pRes, tRes, iRes, lRes, eRes] = await Promise.all([
         axios.get('http://localhost:5000/api/projects'),
         axios.get('http://localhost:5000/api/tasks'),
         axios.get('http://localhost:5000/api/inventory'),
-        axios.get('http://localhost:5000/api/labour')
+        axios.get('http://localhost:5000/api/labour'),
+        axios.get('http://localhost:5000/api/expenses')
       ]);
       setProjects(pRes.data);
       setTasks(tRes.data);
       setInventory(iRes.data);
       setWorkers(lRes.data);
+      setExpenses(eRes.data);
     } catch (err) {
       setTasks([{ id: 101, projectId: 1, title: 'Foundation Concrete Pouring', assignedTo: 'Site Engineer', status: 'Completed', priority: 'High' }]);
       setInventory([{ id: 1, itemName: 'Portland Cement (Bags)', quantity: 450, minThreshold: 100, unit: 'Bags' }]);
-      setWorkers([
-        { id: 1, name: 'Ramesh Kumar', role: 'Mason', dailyWage: 800, status: 'Present' },
-        { id: 2, name: 'Suresh Verma', role: 'Steel Fixer', dailyWage: 850, status: 'Present' }
-      ]);
+      setWorkers([{ id: 1, name: 'Ramesh Kumar', role: 'Mason', dailyWage: 800, status: 'Present' }]);
+      setExpenses([{ id: 1, category: 'Materials', description: 'Bulk Cement Purchase', amount: 180000, date: '2026-10-01' }]);
     }
   };
 
-  // Task Handlers
+  // Handlers
   const handleAddTask = async (e) => {
     e.preventDefault();
     if (!taskTitle) return;
@@ -68,7 +71,6 @@ function App() {
     setTasks(tasks.map(t => t.id === id ? { ...t, status: nextStatus } : t));
   };
 
-  // Inventory Handlers
   const handleAddInventory = async (e) => {
     e.preventDefault();
     if (!itemName || !itemQty) return;
@@ -85,7 +87,6 @@ function App() {
     setInventory(inventory.map(item => item.id === id ? { ...item, quantity: newQty } : item));
   };
 
-  // Labour Handlers
   const handleAddWorker = async (e) => {
     e.preventDefault();
     if (!workerName || !dailyWage) return;
@@ -102,9 +103,20 @@ function App() {
     setWorkers(workers.map(w => w.id === id ? { ...w, status: nextStatus } : w));
   };
 
-  // Wage Total Calculation
-  const presentCount = workers.filter(w => w.status === 'Present').length;
-  const totalWagePayout = workers.reduce((sum, w) => w.status === 'Present' ? sum + w.dailyWage : sum, 0);
+  const handleAddExpense = async (e) => {
+    e.preventDefault();
+    if (!expDesc || !expAmount) return;
+    try {
+      const res = await axios.post('http://localhost:5000/api/expenses', { category: expCategory, description: expDesc, amount: expAmount });
+      setExpenses([...expenses, res.data]);
+    } catch (err) {
+      setExpenses([...expenses, { id: Date.now(), category: expCategory, description: expDesc, amount: Number(expAmount), date: '2026-10-11' }]);
+    }
+    setExpDesc(''); setExpAmount('');
+  };
+
+  const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalBudget = projects[0]?.budget || 5000000;
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'Arial, sans-serif', background: '#f4f6f8', minHeight: '100vh' }}>
@@ -122,10 +134,11 @@ function App() {
       </header>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-        <button onClick={() => setActiveTab('tasks')} style={{ padding: '10px 20px', borderRadius: '6px', border: 'none', background: activeTab === 'tasks' ? '#2563eb' : '#e5e7eb', color: activeTab === 'tasks' ? 'white' : '#374151', cursor: 'pointer', fontWeight: 'bold' }}>📋 Phase 1: Tasks</button>
-        <button onClick={() => setActiveTab('inventory')} style={{ padding: '10px 20px', borderRadius: '6px', border: 'none', background: activeTab === 'inventory' ? '#2563eb' : '#e5e7eb', color: activeTab === 'inventory' ? 'white' : '#374151', cursor: 'pointer', fontWeight: 'bold' }}>📦 Phase 2: Inventory</button>
-        <button onClick={() => setActiveTab('labour')} style={{ padding: '10px 20px', borderRadius: '6px', border: 'none', background: activeTab === 'labour' ? '#2563eb' : '#e5e7eb', color: activeTab === 'labour' ? 'white' : '#374151', cursor: 'pointer', fontWeight: 'bold' }}>👷 Phase 3: Labour & Attendance</button>
+      <div style={{ display: 'flex', gap: '0.8rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <button onClick={() => setActiveTab('tasks')} style={{ padding: '10px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'tasks' ? '#2563eb' : '#e5e7eb', color: activeTab === 'tasks' ? 'white' : '#374151', cursor: 'pointer', fontWeight: 'bold' }}>📋 Tasks</button>
+        <button onClick={() => setActiveTab('inventory')} style={{ padding: '10px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'inventory' ? '#2563eb' : '#e5e7eb', color: activeTab === 'inventory' ? 'white' : '#374151', cursor: 'pointer', fontWeight: 'bold' }}>📦 Inventory</button>
+        <button onClick={() => setActiveTab('labour')} style={{ padding: '10px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'labour' ? '#2563eb' : '#e5e7eb', color: activeTab === 'labour' ? 'white' : '#374151', cursor: 'pointer', fontWeight: 'bold' }}>👷 Labour</button>
+        <button onClick={() => setActiveTab('expenses')} style={{ padding: '10px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'expenses' ? '#2563eb' : '#e5e7eb', color: activeTab === 'expenses' ? 'white' : '#374151', cursor: 'pointer', fontWeight: 'bold' }}>💰 Expenses & Budget</button>
       </div>
 
       {/* TAB 1: TASKS */}
@@ -191,25 +204,9 @@ function App() {
         </>
       )}
 
-      {/* TAB 3: LABOUR & ATTENDANCE */}
+      {/* TAB 3: LABOUR */}
       {activeTab === 'labour' && (
         <>
-          {/* Daily Wage & Attendance Summary Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ background: 'white', padding: '1rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <h4>Total Crew Registered</h4>
-              <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#2563eb' }}>{workers.length} Workers</p>
-            </div>
-            <div style={{ background: 'white', padding: '1rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <h4>Present Today</h4>
-              <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#16a34a' }}>{presentCount} Active</p>
-            </div>
-            <div style={{ background: 'white', padding: '1rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <h4>Est. Today's Wage Bill</h4>
-              <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#d97706' }}>₹{totalWagePayout}</p>
-            </div>
-          </div>
-
           <section style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', marginBottom: '2rem' }}>
             <h2>Register New Worker</h2>
             <form onSubmit={handleAddWorker} style={{ display: 'flex', gap: '1rem', marginTop: '1rem', flexWrap: 'wrap' }}>
@@ -221,38 +218,74 @@ function App() {
               <button type="submit" style={{ padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+ Register Worker</button>
             </form>
           </section>
-
           <section style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-            <h2>Daily Attendance & Wage Roster</h2>
+            <h2>Daily Attendance Roster</h2>
             <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
-              <thead>
-                <tr style={{ background: '#f3f4f6', textAlign: 'left' }}>
-                  <th style={{ padding: '12px' }}>Worker Name</th>
-                  <th style={{ padding: '12px' }}>Skill Category</th>
-                  <th style={{ padding: '12px' }}>Daily Rate</th>
-                  <th style={{ padding: '12px' }}>Attendance Status</th>
-                  <th style={{ padding: '12px' }}>Action</th>
-                </tr>
-              </thead>
+              <thead><tr style={{ background: '#f3f4f6', textAlign: 'left' }}><th style={{ padding: '12px' }}>Name</th><th style={{ padding: '12px' }}>Role</th><th style={{ padding: '12px' }}>Rate</th><th style={{ padding: '12px' }}>Status</th><th style={{ padding: '12px' }}>Action</th></tr></thead>
               <tbody>
                 {workers.map(w => (
                   <tr key={w.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
                     <td style={{ padding: '12px', fontWeight: 'bold' }}>{w.name}</td>
                     <td style={{ padding: '12px' }}>{w.role}</td>
                     <td style={{ padding: '12px' }}>₹{w.dailyWage}/day</td>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{ color: w.status === 'Present' ? '#16a34a' : '#dc2626', background: w.status === 'Present' ? '#dcfce7' : '#fee2e2', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                        {w.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <button 
-                        onClick={() => toggleAttendance(w.id, w.status)}
-                        style={{ padding: '6px 12px', background: w.status === 'Present' ? '#e11d48' : '#16a34a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                      >
-                        Mark {w.status === 'Present' ? 'Absent' : 'Present'}
-                      </button>
-                    </td>
+                    <td style={{ padding: '12px' }}><span style={{ color: w.status === 'Present' ? '#16a34a' : '#dc2626', background: w.status === 'Present' ? '#dcfce7' : '#fee2e2', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold', fontSize: '0.85rem' }}>{w.status}</span></td>
+                    <td style={{ padding: '12px' }}><button onClick={() => toggleAttendance(w.id, w.status)} style={{ padding: '6px 12px', background: w.status === 'Present' ? '#e11d48' : '#16a34a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Mark {w.status === 'Present' ? 'Absent' : 'Present'}</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </>
+      )}
+
+      {/* TAB 4: EXPENSES & BUDGET TRACKING */}
+      {activeTab === 'expenses' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ background: 'white', padding: '1.2rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+              <h4>Total Approved Budget</h4>
+              <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#2563eb' }}>₹{totalBudget.toLocaleString()}</p>
+            </div>
+            <div style={{ background: 'white', padding: '1.2rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+              <h4>Total Actual Expenses</h4>
+              <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#dc2626' }}>₹{totalSpent.toLocaleString()}</p>
+            </div>
+            <div style={{ background: 'white', padding: '1.2rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+              <h4>Budget Remaining</h4>
+              <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#16a34a' }}>₹{(totalBudget - totalSpent).toLocaleString()}</p>
+            </div>
+          </div>
+
+          <section style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', marginBottom: '2rem' }}>
+            <h2>Log New Expense</h2>
+            <form onSubmit={handleAddExpense} style={{ display: 'flex', gap: '1rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+              <select value={expCategory} onChange={(e) => setExpCategory(e.target.value)} style={{ padding: '10px', borderRadius: '4px' }}>
+                <option>Materials</option><option>Equipment</option><option>Labour</option><option>Permits & Misc</option>
+              </select>
+              <input type="text" placeholder="Description (e.g. Steel delivery)" value={expDesc} onChange={(e) => setExpDesc(e.target.value)} style={{ flex: 2, minWidth: '200px', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+              <input type="number" placeholder="Amount (₹)" value={expAmount} onChange={(e) => setExpAmount(e.target.value)} style={{ flex: 1, minWidth: '120px', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+              <button type="submit" style={{ padding: '10px 20px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+ Log Expense</button>
+            </form>
+          </section>
+
+          <section style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+            <h2>Project Expense Ledger</h2>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
+              <thead>
+                <tr style={{ background: '#f3f4f6', textAlign: 'left' }}>
+                  <th style={{ padding: '12px' }}>Date</th>
+                  <th style={{ padding: '12px' }}>Category</th>
+                  <th style={{ padding: '12px' }}>Description</th>
+                  <th style={{ padding: '12px' }}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map(ex => (
+                  <tr key={ex.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    <td style={{ padding: '12px', color: '#6b7280' }}>{ex.date}</td>
+                    <td style={{ padding: '12px' }}><span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 'bold' }}>{ex.category}</span></td>
+                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{ex.description}</td>
+                    <td style={{ padding: '12px', color: '#dc2626', fontWeight: 'bold' }}>₹{ex.amount.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
