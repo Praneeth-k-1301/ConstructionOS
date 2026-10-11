@@ -34,11 +34,18 @@ let workers = [
   { id: 2, name: 'Suresh Verma', role: 'Steel Fixer', dailyWage: 850, status: 'Present' }
 ];
 
-// Phase 4: Expenses & Site Logs
+// Phase 4: Expenses
 let expenses = [
   { id: 1, category: 'Materials', description: 'Bulk Cement Purchase', amount: 180000, date: '2026-10-01' },
   { id: 2, category: 'Equipment', description: 'JCB Excavator Rental (1 Week)', amount: 45000, date: '2026-10-05' },
   { id: 3, category: 'Labour', description: 'Weekly Wage Advance', amount: 120000, date: '2026-10-07' }
+];
+
+// Phase 5: Documents Repository
+let documents = [
+  { id: 1, title: 'Architectural Blueprint v2', category: 'Blueprint', uploadedBy: 'Project Manager', date: '2026-09-15' },
+  { id: 2, title: 'Municipal Environmental Clearance', category: 'Permit', uploadedBy: 'Site Engineer', date: '2026-09-20' },
+  { id: 3, title: 'Contractor Safety Guidelines', category: 'Contract', uploadedBy: 'Contractor', date: '2026-09-25' }
 ];
 
 app.get('/api/projects', (req, res) => res.json(projects));
@@ -82,19 +89,60 @@ app.patch('/api/labour/:id', (req, res) => {
   else res.status(404).json({ message: 'Worker not found' });
 });
 
-// Phase 4: Expense Endpoints
+// Expenses Endpoints
 app.get('/api/expenses', (req, res) => res.json(expenses));
 app.post('/api/expenses', (req, res) => {
-  const { category, description, amount } = req.body;
-  const newExpense = {
-    id: Date.now(),
-    category: category || 'General',
-    description,
-    amount: Number(amount) || 0,
-    date: new Date().toISOString().split('T')[0]
-  };
+  const newExpense = { id: Date.now(), category: req.body.category || 'General', description: req.body.description, amount: Number(req.body.amount) || 0, date: new Date().toISOString().split('T')[0] };
   expenses.push(newExpense);
   res.status(201).json(newExpense);
+});
+
+// Phase 5: Documents Endpoints
+app.get('/api/documents', (req, res) => res.json(documents));
+app.post('/api/documents', (req, res) => {
+  const newDoc = { id: Date.now(), title: req.body.title, category: req.body.category || 'Blueprint', uploadedBy: req.body.uploadedBy || 'Project Manager', date: new Date().toISOString().split('T')[0] };
+  documents.push(newDoc);
+  res.status(201).json(newDoc);
+});
+
+// Phase 5: AI Analytics Engine Endpoint
+app.get('/api/ai/analytics', (req, res) => {
+  const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const budget = projects[0].budget;
+  const lowStockItems = inventory.filter(i => i.quantity < i.minThreshold);
+  const pendingTasks = tasks.filter(t => t.status !== 'Completed');
+
+  let insights = [];
+  let riskLevel = 'Low';
+
+  if (totalSpent > budget * 0.8) {
+    riskLevel = 'High';
+    insights.push('⚠️ Budget Alert: Expenses have crossed 80% of total allocated budget.');
+  } else {
+    insights.push('✅ Budget tracking is currently within safe operational limits.');
+  }
+
+  if (lowStockItems.length > 0) {
+    riskLevel = 'Medium';
+    insights.push(`⚠️ Inventory Warning: ${lowStockItems.map(i => i.itemName).join(', ')} is below minimum threshold level.`);
+  } else {
+    insights.push('✅ All inventory stock levels are optimal.');
+  }
+
+  if (pendingTasks.length > 2) {
+    insights.push(`ℹ️ Schedule Notice: There are ${pendingTasks.length} pending high-priority execution tasks.`);
+  } else {
+    insights.push('✅ Task execution velocity is on schedule.');
+  }
+
+  res.json({
+    riskLevel,
+    totalSpent,
+    budgetRemaining: budget - totalSpent,
+    lowStockCount: lowStockItems.length,
+    pendingTasksCount: pendingTasks.length,
+    insights
+  });
 });
 
 const PORT = process.env.PORT || 5000;
